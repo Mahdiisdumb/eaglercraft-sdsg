@@ -17,7 +17,7 @@
     <script type="text/javascript">
         "use strict";
 
-        // Wait until TeaVM runtime is ready before calling anything
+        // Wrapper to ensure TeaVM runtime is ready before any calls
         function safeTeaVMCall(fn) {
             if (typeof main !== "function") {
                 setTimeout(() => safeTeaVMCall(fn), 50);
@@ -26,12 +26,12 @@
             try {
                 fn();
             } catch (e) {
-                console.error("TeaVM call failed:", e);
+                console.warn("Caught TeaVM internal exception (ignored for safety):", e);
             }
         }
 
         function initEaglercraft() {
-            // %%%%%%%%% launch options %%%%%%%%%%%%
+            // launch options
             const relayId = Math.floor(Math.random() * 3);
             window.eaglercraftXOpts = {
                 demoMode: false,
@@ -47,15 +47,25 @@
                 ]
             };
 
-            // handle ?server query param
+            // handle ?server param
             if (typeof URLSearchParams !== "undefined") {
                 const q = new URLSearchParams(window.location.search);
                 const s = q.get("server");
                 if (s) window.eaglercraftXOpts.joinServer = s;
             }
 
-            // start the game safely
+            // start TeaVM safely
             safeTeaVMCall(main);
+
+            // dynamically register images or other assets here AFTER TeaVM is ready
+            const images = document.querySelectorAll("img[data-teavm]");
+            images.forEach(img => {
+                img.onload = () => safeTeaVMCall(() => {
+                    if (typeof TeaVM !== "undefined" && TeaVM.imageLoaded) {
+                        TeaVM.imageLoaded(img); // example internal callback
+                    }
+                });
+            });
         }
 
         window.addEventListener("load", () => {
@@ -66,12 +76,8 @@
             }
         });
 
-        // Wrap all image or asset callbacks to avoid early TeaVM access
-        function registerImage(img, callback) {
-            img.onload = () => safeTeaVMCall(() => callback(img));
-        }
     </script>
 </head>
-<body style="margin:0px;width:100%;height:100%;overflow:hidden;background-color:black;" id="game_frame">
+<body style="margin:0;width:100%;height:100%;overflow:hidden;background-color:black;" id="game_frame">
 </body>
 </html>
